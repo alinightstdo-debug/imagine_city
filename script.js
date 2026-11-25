@@ -129,20 +129,27 @@ showOpening();
     shine.play().catch(restoreMusic);
   });
   let enabled = true;
-  const answerSound = new Audio('assets/answer-interface.mp3');
-  answerSound.preload = 'auto';
-  answerSound.volume = 0.15;
+  const answerSoundUrl = 'assets/answer-interface.mp3';
+  const answerSounds = [];
   function playAnswer(){
     if(!enabled)return;
-    answerSound.pause();answerSound.currentTime=0;
-    answerSound.play().catch(()=>{});
+    const sound = answerSounds.pop() || new Audio(answerSoundUrl);
+    sound.volume = 0.15;
+    sound.currentTime = 0;
+    sound.play().catch(()=>{});
+    sound.onended = () => {
+      sound.onended = null;
+      if(answerSounds.length < 6)answerSounds.push(sound);
+    };
   }
   document.addEventListener('imagine:answer',playAnswer);
   content.addEventListener('click',e=>{
     const choice=e.target.closest('[data-code],[data-job],[data-traveler-choice]');
     if(choice&&!choice.disabled&&!busy)playAnswer();
   },true);
-  document.addEventListener('imagine:scene',e=>{if(e.detail==='result'){answerSound.pause();answerSound.currentTime=0;}});
+  document.addEventListener('imagine:scene',e=>{
+    if(e.detail==='result')answerSounds.forEach(sound=>{sound.pause();sound.currentTime=0});
+  });
 
   let started = false;
   let fadeFrame = null;
@@ -187,7 +194,7 @@ showOpening();
     enabled = !enabled;
     sync();
     if (enabled) start();
-    else {answerSound.pause();answerSound.currentTime=0;shine.pause();shine.currentTime=0;shining=false;fadeTo(0, 450, () => audio.pause());}
+    else {answerSounds.forEach(sound=>{sound.pause();sound.currentTime=0});shine.pause();shine.currentTime=0;shining=false;fadeTo(0, 450, () => audio.pause());}
   });
   sync();
 })();
