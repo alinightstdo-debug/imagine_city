@@ -131,8 +131,34 @@ showOpening();
   let enabled = true;
   const answerSoundUrl = 'assets/answer-interface.mp3';
   const answerSounds = [];
+  let clickContext = null;
+  function ensureClickContext(){
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if(!AudioContextClass)return null;
+    if(!clickContext)clickContext = new AudioContextClass();
+    if(clickContext.state==='suspended')clickContext.resume().catch(()=>{});
+    return clickContext;
+  }
+  function playClickTone(){
+    const context = ensureClickContext();
+    if(!context)return;
+    const now = context.currentTime;
+    const oscillator = context.createOscillator();
+    const gain = context.createGain();
+    oscillator.type = 'sine';
+    oscillator.frequency.setValueAtTime(620, now);
+    oscillator.frequency.exponentialRampToValueAtTime(410, now + 0.045);
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.exponentialRampToValueAtTime(0.055, now + 0.006);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.065);
+    oscillator.connect(gain);
+    gain.connect(context.destination);
+    oscillator.start(now);
+    oscillator.stop(now + 0.07);
+  }
   function playAnswer(){
     if(!enabled)return;
+    playClickTone();
     const sound = answerSounds.pop() || new Audio(answerSoundUrl);
     sound.volume = 0.15;
     sound.currentTime = 0;
@@ -142,10 +168,9 @@ showOpening();
       if(answerSounds.length < 6)answerSounds.push(sound);
     };
   }
-  document.addEventListener('imagine:answer',playAnswer);
-  content.addEventListener('click',e=>{
-    const choice=e.target.closest('[data-code],[data-job],[data-traveler-choice]');
-    if(choice&&!choice.disabled&&!busy)playAnswer();
+  document.addEventListener('click',e=>{
+    const button=e.target.closest('button');
+    if(button&&!button.disabled)playAnswer();
   },true);
   document.addEventListener('imagine:scene',e=>{
     if(e.detail==='result')answerSounds.forEach(sound=>{sound.pause();sound.currentTime=0});
